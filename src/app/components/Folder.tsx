@@ -115,6 +115,10 @@ const Folder = ({
     const dragDataStr = e.dataTransfer.getData('text/json')
     const dragData = JSON.parse(dragDataStr) as DragData
     const { sourceFolder, sourcePosition } = dragData
+    // check to avoid move folder into itself or its children
+    if (JSON.stringify(targetPosition).startsWith(JSON.stringify(sourcePosition).slice(0, -1)))
+      return alert('Cannot move folder into itself or its children!')
+
     setIsOpen(true)
     setTree((preTreeStr: string) => {
       // add source folder to target
