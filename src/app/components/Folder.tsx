@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import Folders from './Folders'
 
+interface DragData {
+  sourceFolder: FolderType
+  sourcePosition: number[]
+}
+
 export interface FolderType {
   id: string
   name: string
@@ -94,9 +99,44 @@ const Folder = ({
     })
     selectFolder('')
   }
+  const handleDropStart = (
+    e: React.DragEvent<HTMLElement>,
+    sourceFolder: FolderType,
+    sourcePosition: number[],
+  ) => {
+    const transferData = {
+      sourceFolder,
+      sourcePosition,
+    }
+    e.dataTransfer.setData('text/json', JSON.stringify(transferData))
+  }
+  const handleDrop = (e: React.DragEvent<HTMLElement>, targetPosition: number[]) => {
+    e.preventDefault()
+    const dragDataStr = e.dataTransfer.getData('text/json')
+    const dragData = JSON.parse(dragDataStr) as DragData
+    const { sourceFolder, sourcePosition } = dragData
+    setIsOpen(true)
+    setTree((preTreeStr: string) => {
+      // add source folder to target
+      const preTree = JSON.parse(preTreeStr)
+      const target = getTarget(preTree, [...targetPosition])
+      // remove source folder
+      deleteTarget(preTree, [...sourcePosition])
+      // add new after removing to avoid index change
+      if (target?.children) {
+        target.children.push(sourceFolder)
+      }
+      return JSON.stringify(preTree)
+    })
+  }
   return (
     <>
-      <div style={{ cursor: 'pointer' }}>
+      <div
+        style={{ cursor: 'pointer' }}
+        onDrop={e => handleDrop(e, position)}
+        onDragOver={e => e.preventDefault()}
+        draggable
+        onDragStart={e => handleDropStart(e, folder, position)}>
         {hasChildren && (
           <span style={{ marginRight: '0.5rem' }} onClick={() => setIsOpen(!isOpen)}>
             {isOpen ? '▼' : '▶'}

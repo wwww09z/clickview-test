@@ -1,4 +1,5 @@
 import Folder, { FolderType } from './Folder'
+
 const Folders = ({
   folders,
   selectFolder,
