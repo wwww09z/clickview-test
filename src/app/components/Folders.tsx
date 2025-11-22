@@ -5,12 +5,16 @@ const Folders = ({
   selected,
   setTree,
   position,
+  setLatestId,
+  latestId,
 }: {
   folders: FolderType[]
   selectFolder: Function
   selected: string
   setTree: Function
-  position: string[]
+  position: number[]
+  setLatestId: Function
+  latestId: number
 }) => {
   return (
     <ul>
@@ -21,7 +25,9 @@ const Folders = ({
           selectFolder={selectFolder}
           selected={selected}
           setTree={setTree}
-          position={[...position, index.toString()]}
+          position={[...position, index]}
+          setLatestId={setLatestId}
+          latestId={latestId}
         />
       ))}
     </ul>

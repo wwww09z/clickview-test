@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import styles from './page.module.css'
 import Folders from './components/Folders'
 
 const initialTree = [
@@ -46,13 +45,18 @@ const initialTree = [
 
 export default function Home() {
   const [selected, setSelected] = useState('')
-  const [tree, setTree] = useState(initialTree)
+  const [treeStr, setTree] = useState<string>(JSON.stringify(initialTree))
+  const [latestId, setLatestId] = useState(10)
+  const tree = JSON.parse(treeStr)
   return (
     <Folders
-      folders={tree}
+      folders={JSON.parse(treeStr)}
       selectFolder={setSelected}
       selected={selected}
       setTree={setTree}
-      position={[]}></Folders>
+      position={[]}
+      setLatestId={setLatestId}
+      latestId={latestId}
+    />
   )
 }

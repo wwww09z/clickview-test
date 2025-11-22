@@ -7,23 +7,73 @@ export interface FolderType {
   children?: FolderType[]
 }
 
+const getTarget = (tree: FolderType[], position: number[]): FolderType | null => {
+  if (tree && tree.length > 0 && position.length > 0) {
+    const currentPosition = position.shift()
+    const currentPositionExists = currentPosition !== undefined && currentPosition !== null
+    if (currentPositionExists && tree[currentPosition]) {
+      const currentTree = tree[currentPosition]?.children
+      return currentTree && currentTree.length > 0 && position.length > 0
+        ? getTarget(currentTree, position)
+        : tree[currentPosition]
+    }
+  }
+  return null
+}
+
 const Folder = ({
   folder,
   selectFolder,
   selected,
   setTree,
   position,
+  setLatestId,
+  latestId,
 }: {
   folder: FolderType
   selectFolder: Function
   selected: string
   setTree: Function
-  position: string[]
+  position: number[]
+  setLatestId: Function
+  latestId: number
 }) => {
   const { id, name: folderName, children } = folder
   const [isOpen, setIsOpen] = useState(false)
-  const [currentName, setCurrentName] = useState(folderName)
   const hasChildren = children && children.length > 0
+  const handleRename = (newName: string, targetPosition: number[]) => {
+    if (newName !== folderName) {
+      setTree((preTreeStr: string) => {
+        const preTree = JSON.parse(preTreeStr)
+        const target = getTarget(preTree, [...targetPosition])
+        if (target) {
+          target.name = newName
+        }
+        // console.error(`==> preTree: `, JSON.stringify(preTree))
+        return JSON.stringify(preTree)
+      })
+      selectFolder('')
+    }
+  }
+  const handleAdd = () => {
+    const newLatestId = latestId + 1
+    setIsOpen(true)
+    setTree((preTreeStr: string) => {
+      const preTree = JSON.parse(preTreeStr)
+      const target = getTarget(preTree, [...position])
+      if (target?.children) {
+        const newFolder: FolderType = {
+          id: newLatestId.toString(),
+          name: '',
+          children: [],
+        }
+        target.children.push(newFolder)
+      }
+      return JSON.stringify(preTree)
+    })
+    selectFolder(newLatestId.toString())
+    setLatestId(newLatestId)
+  }
   return (
     <>
       <div style={{ cursor: 'pointer' }}>
@@ -33,20 +83,29 @@ const Folder = ({
           </span>
         )}
         {selected === id ? (
-          <input value={currentName} onChange={e => setCurrentName(e.target.value)} />
+          <>
+            <input
+              defaultValue={folderName}
+              onBlur={e => handleRename(e.target.value, position)}
+              required
+            />
+            <button onClick={handleAdd}>Add</button>
+            <button>Remove</button>
+          </>
         ) : (
-          <span onClick={() => selectFolder(id)}>{currentName}</span>
+          <span onClick={() => selectFolder(id)}>{folderName}</span>
         )}
       </div>
-      {children && (
+      {children && children.length > 0 && (
         <div style={isOpen ? {} : { display: 'none' }}>
-          {' '}
           <Folders
             folders={children}
             selectFolder={selectFolder}
             selected={selected}
             setTree={setTree}
-            position={[...position, 'children']}
+            position={position}
+            setLatestId={setLatestId}
+            latestId={latestId}
           />
         </div>
       )}
