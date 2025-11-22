@@ -7,7 +7,7 @@ export interface FolderType {
   children?: FolderType[]
 }
 
-const getTarget = (tree: FolderType[], position: number[]): FolderType | null => {
+export const getTarget = (tree: FolderType[], position: number[]): FolderType | null => {
   if (tree && tree.length > 0 && position.length > 0) {
     const currentPosition = position.shift()
     const currentPositionExists = currentPosition !== undefined && currentPosition !== null
@@ -19,6 +19,19 @@ const getTarget = (tree: FolderType[], position: number[]): FolderType | null =>
     }
   }
   return null
+}
+
+const deleteTarget = (tree: FolderType[], position: number[]) => {
+  if (tree && tree.length > 0 && position.length > 0) {
+    const currentPosition = position.shift()
+    const currentPositionExists = currentPosition !== undefined && currentPosition !== null
+    if (currentPositionExists && tree[currentPosition]) {
+      const currentTree = tree[currentPosition]?.children
+      if (currentTree && currentTree.length > 0 && position.length > 0)
+        deleteTarget(currentTree, position)
+      else tree.splice(currentPosition, 1)
+    }
+  }
 }
 
 const Folder = ({
@@ -49,7 +62,6 @@ const Folder = ({
         if (target) {
           target.name = newName
         }
-        // console.error(`==> preTree: `, JSON.stringify(preTree))
         return JSON.stringify(preTree)
       })
       selectFolder('')
@@ -74,6 +86,14 @@ const Folder = ({
     selectFolder(newLatestId.toString())
     setLatestId(newLatestId)
   }
+  const handleRemove = () => {
+    setTree((preTreeStr: string) => {
+      const preTree = JSON.parse(preTreeStr)
+      deleteTarget(preTree, [...position])
+      return JSON.stringify(preTree)
+    })
+    selectFolder('')
+  }
   return (
     <>
       <div style={{ cursor: 'pointer' }}>
@@ -90,7 +110,7 @@ const Folder = ({
               required
             />
             <button onClick={handleAdd}>Add</button>
-            <button>Remove</button>
+            <button onClick={handleRemove}>Remove</button>
           </>
         ) : (
           <span onClick={() => selectFolder(id)}>{folderName}</span>

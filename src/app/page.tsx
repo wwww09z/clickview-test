@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Folders from './components/Folders'
+import { FolderType } from './components/Folder'
 
 const initialTree = [
   {
@@ -48,15 +49,36 @@ export default function Home() {
   const [treeStr, setTree] = useState<string>(JSON.stringify(initialTree))
   const [latestId, setLatestId] = useState(10)
   const tree = JSON.parse(treeStr)
+
+  const handleAdd = () => {
+    const newLatestId = latestId + 1
+    setTree((preTreeStr: string) => {
+      const preTree = JSON.parse(preTreeStr)
+      const newFolder: FolderType = {
+        id: newLatestId.toString(),
+        name: '',
+        children: [],
+      }
+      preTree.push(newFolder)
+      return JSON.stringify(preTree)
+    })
+    setSelected(newLatestId.toString())
+    setLatestId(newLatestId)
+  }
   return (
-    <Folders
-      folders={JSON.parse(treeStr)}
-      selectFolder={setSelected}
-      selected={selected}
-      setTree={setTree}
-      position={[]}
-      setLatestId={setLatestId}
-      latestId={latestId}
-    />
+    <>
+      <Folders
+        folders={JSON.parse(treeStr)}
+        selectFolder={setSelected}
+        selected={selected}
+        setTree={setTree}
+        position={[]}
+        setLatestId={setLatestId}
+        latestId={latestId}
+      />
+      <div>
+        <button onClick={handleAdd}>Add Root Folder</button>
+      </div>
+    </>
   )
 }
