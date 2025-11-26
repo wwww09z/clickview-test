@@ -13,6 +13,14 @@ export interface FolderType {
   children?: FolderType[]
 }
 
+export const blankFolder = (newLatestId: number) => {
+  return {
+    id: newLatestId.toString(),
+    name: '',
+    children: [],
+  }
+}
+
 export const getTarget = (tree: FolderType[], position: number[], depth = 0): FolderType | null => {
   if (!tree || tree.length === 0 || depth >= position.length) return null
   const idx = position[depth]
@@ -58,7 +66,6 @@ const Folder = ({ folder, position }: { folder: FolderType; position: number[] }
         setTree(tree)
       }
     }
-    // console.error('==> newName: ', JSON.stringify(newName))
     if (!next) selectFolder('')
   }
 
@@ -67,11 +74,7 @@ const Folder = ({ folder, position }: { folder: FolderType; position: number[] }
     const target = getTarget(tree, [...position])
     if (target?.children) {
       setIsOpen(true)
-      const newFolder: FolderType = {
-        id: newLatestId.toString(),
-        name: '',
-        children: [],
-      }
+      const newFolder: FolderType = blankFolder(newLatestId)
       target.children = [...target.children, newFolder]
       setTree(tree)
       selectFolder(newLatestId.toString())
@@ -84,49 +87,41 @@ const Folder = ({ folder, position }: { folder: FolderType; position: number[] }
     selectFolder('')
   }
 
-  const handleDropStart = (
-    e: React.DragEvent<HTMLElement>,
-    sourceFolder: FolderType,
-    sourcePosition: number[],
-  ) => {
+  // handle drag and drop
+  const handleDropStart = (e: React.DragEvent<HTMLElement>) => {
     const transferData = {
-      sourceFolder,
-      sourcePosition,
+      sourceFolder: folder,
+      sourcePosition: position,
     }
     e.dataTransfer.setData('text/json', JSON.stringify(transferData))
   }
-  const handleDrop = (e: React.DragEvent<HTMLElement>, targetPosition: number[]) => {
+  const handleDrop = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault()
     const dragDataStr = e.dataTransfer.getData('text/json')
     const dragData = JSON.parse(dragDataStr) as DragData
     const { sourceFolder, sourcePosition } = dragData
     // check to avoid move folder into itself or its children
-    if (JSON.stringify(targetPosition).startsWith(JSON.stringify(sourcePosition).slice(0, -1)))
+    if (JSON.stringify(position).startsWith(JSON.stringify(sourcePosition).slice(0, -1)))
       return alert('Cannot move folder into itself or its children!')
 
     setIsOpen(true)
-    setTree((tree: FolderType[]) => {
-      // add source folder to target
-      // const preTree = JSON.parse(preTreeStr)
-      const preTree = [...tree]
-      const target = getTarget(preTree, [...targetPosition])
+    const target = getTarget(tree, position)
+    // add new after removing to avoid index change
+    if (target?.children) {
       // remove source folder
-      deleteTarget(preTree, [...sourcePosition])
-      // add new after removing to avoid index change
-      if (target?.children) {
-        target.children.push(sourceFolder)
-      }
-      return [...preTree]
-    })
+      const updatedTree = deleteTarget(tree, sourcePosition)
+      target.children.push(sourceFolder)
+      setTree(updatedTree)
+    }
   }
   return (
     <>
       <div
         style={{ cursor: 'pointer' }}
-        onDrop={e => handleDrop(e, position)}
+        onDrop={e => handleDrop(e)}
         onDragOver={e => e.preventDefault()}
         draggable
-        onDragStart={e => handleDropStart(e, folder, position)}>
+        onDragStart={e => handleDropStart(e)}>
         {hasChildren && (
           <span style={{ marginRight: '0.5rem' }} onClick={() => setIsOpen(!isOpen)}>
             {isOpen ? '▼' : '▶'}

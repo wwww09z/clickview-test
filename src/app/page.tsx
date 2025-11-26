@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Folders from './components/Folders'
-import { FolderType } from './components/Folder'
+import { blankFolder, FolderType } from './components/Folder'
 import { TreeSettingsContext } from './context'
 
 const initialTree = [
@@ -53,13 +53,8 @@ export default function Home() {
   const handleAdd = () => {
     const newLatestId = latestId + 1
     setTree((tree: FolderType[]) => {
-      // const preTree = JSON.parse(preTreeStr)
       const preTree = [...tree]
-      const newFolder: FolderType = {
-        id: newLatestId.toString(),
-        name: '',
-        children: [],
-      }
+      const newFolder: FolderType = blankFolder(newLatestId)
       preTree.push(newFolder)
       return [...preTree]
     })
