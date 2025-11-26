@@ -1,7 +1,8 @@
 'use client'
 import { useState } from 'react'
 import Folders from './components/Folders'
-import { FolderType } from './components/Folder'
+import { blankFolder, FolderType } from './components/Folder'
+import { TreeSettingsContext } from './context'
 
 const initialTree = [
   {
@@ -46,39 +47,34 @@ const initialTree = [
 
 export default function Home() {
   const [selected, setSelected] = useState('')
-  const [treeStr, setTree] = useState<string>(JSON.stringify(initialTree))
+  const [tree, setTree] = useState<FolderType[]>(initialTree)
   const [latestId, setLatestId] = useState(10)
-  const tree = JSON.parse(treeStr)
 
   const handleAdd = () => {
     const newLatestId = latestId + 1
-    setTree((preTreeStr: string) => {
-      const preTree = JSON.parse(preTreeStr)
-      const newFolder: FolderType = {
-        id: newLatestId.toString(),
-        name: '',
-        children: [],
-      }
+    setTree((tree: FolderType[]) => {
+      const preTree = [...tree]
+      const newFolder: FolderType = blankFolder(newLatestId)
       preTree.push(newFolder)
-      return JSON.stringify(preTree)
+      return [...preTree]
     })
     setSelected(newLatestId.toString())
     setLatestId(newLatestId)
   }
   return (
-    <>
-      <Folders
-        folders={JSON.parse(treeStr)}
-        selectFolder={setSelected}
-        selected={selected}
-        setTree={setTree}
-        position={[]}
-        setLatestId={setLatestId}
-        latestId={latestId}
-      />
+    <TreeSettingsContext.Provider
+      value={{
+        selectFolder: setSelected,
+        selected: selected,
+        tree: tree,
+        setTree,
+        setLatestId,
+        latestId,
+      }}>
+      <Folders folders={tree} position={[]} />
       <div>
         <button onClick={handleAdd}>Add Root Folder</button>
       </div>
-    </>
+    </TreeSettingsContext.Provider>
   )
 }

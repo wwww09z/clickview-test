@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import Folders from './Folders'
+import { TreeSettingsContext } from '../context'
 
 interface DragData {
   sourceFolder: FolderType
@@ -12,135 +13,120 @@ export interface FolderType {
   children?: FolderType[]
 }
 
-export const getTarget = (tree: FolderType[], position: number[]): FolderType | null => {
-  if (tree && tree.length > 0 && position.length > 0) {
-    const currentPosition = position.shift()
-    const currentPositionExists = currentPosition !== undefined && currentPosition !== null
-    if (currentPositionExists && tree[currentPosition]) {
-      const currentTree = tree[currentPosition]?.children
-      return currentTree && currentTree.length > 0 && position.length > 0
-        ? getTarget(currentTree, position)
-        : tree[currentPosition]
-    }
-  }
-  return null
-}
-
-const deleteTarget = (tree: FolderType[], position: number[]) => {
-  if (tree && tree.length > 0 && position.length > 0) {
-    const currentPosition = position.shift()
-    const currentPositionExists = currentPosition !== undefined && currentPosition !== null
-    if (currentPositionExists && tree[currentPosition]) {
-      const currentTree = tree[currentPosition]?.children
-      if (currentTree && currentTree.length > 0 && position.length > 0)
-        deleteTarget(currentTree, position)
-      else tree.splice(currentPosition, 1)
-    }
+export const blankFolder = (newLatestId: number) => {
+  return {
+    id: newLatestId.toString(),
+    name: '',
+    children: [],
   }
 }
 
-const Folder = ({
-  folder,
-  selectFolder,
-  selected,
-  setTree,
-  position,
-  setLatestId,
-  latestId,
-}: {
-  folder: FolderType
-  selectFolder: Function
-  selected: string
-  setTree: Function
-  position: number[]
-  setLatestId: Function
-  latestId: number
-}) => {
+export const getTarget = (tree: FolderType[], position: number[], depth = 0): FolderType | null => {
+  if (!tree || tree.length === 0 || depth >= position.length) return null
+  const idx = position[depth]
+  const node = tree[idx]
+  if (!node) return null
+  if (depth === position.length - 1) return node
+  return getTarget(node.children ?? [], position, depth + 1)
+}
+
+const deleteTarget = (tree: FolderType[], position: number[], depth = 0): FolderType[] => {
+  if (!tree || tree.length === 0 || depth >= position.length) return tree
+  const idx = position[depth]
+  if (idx == null || !tree[idx]) return tree
+
+  if (depth === position.length - 1) {
+    // remove this node immutably
+    return tree.filter((_, i) => i !== idx)
+  }
+
+  const newTree = [...tree]
+  newTree[idx].children = deleteTarget(newTree[idx].children ?? [], position, depth + 1)
+  return [...newTree]
+}
+
+const Folder = ({ folder, position }: { folder: FolderType; position: number[] }) => {
+  const treeSettings = useContext(TreeSettingsContext)
+  const { selectFolder, selected, tree, setTree, setLatestId, latestId } = treeSettings
   const { id, name: folderName, children } = folder
   const [isOpen, setIsOpen] = useState(false)
   const hasChildren = children && children.length > 0
-  const handleRename = (newName: string, targetPosition: number[]) => {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  useEffect(() => {
+    if (selected && inputRef.current) inputRef.current.focus()
+  }, [selected])
+
+  const handleRename = (e: React.FocusEvent<HTMLInputElement>) => {
+    const input = e.target
+    // trigger browser validation UI
+    const ok = input.reportValidity()
+    if (!ok) return
+
+    const next = e.relatedTarget as HTMLElement | null
+    const newName = e.target.value
     if (newName !== folderName) {
-      setTree((preTreeStr: string) => {
-        const preTree = JSON.parse(preTreeStr)
-        const target = getTarget(preTree, [...targetPosition])
-        if (target) {
-          target.name = newName
-        }
-        return JSON.stringify(preTree)
-      })
-      selectFolder('')
+      const target = getTarget(tree, position)
+      if (target) {
+        target.name = newName
+        setTree(tree)
+      }
     }
+    if (!next) selectFolder('')
   }
+
   const handleAdd = () => {
     const newLatestId = latestId + 1
-    setIsOpen(true)
-    setTree((preTreeStr: string) => {
-      const preTree = JSON.parse(preTreeStr)
-      const target = getTarget(preTree, [...position])
-      if (target?.children) {
-        const newFolder: FolderType = {
-          id: newLatestId.toString(),
-          name: '',
-          children: [],
-        }
-        target.children.push(newFolder)
-      }
-      return JSON.stringify(preTree)
-    })
-    selectFolder(newLatestId.toString())
-    setLatestId(newLatestId)
+    const target = getTarget(tree, [...position])
+    if (target?.children) {
+      setIsOpen(true)
+      const newFolder: FolderType = blankFolder(newLatestId)
+      target.children = [...target.children, newFolder]
+      setTree(tree)
+      selectFolder(newLatestId.toString())
+      setLatestId(newLatestId)
+    }
   }
   const handleRemove = () => {
-    setTree((preTreeStr: string) => {
-      const preTree = JSON.parse(preTreeStr)
-      deleteTarget(preTree, [...position])
-      return JSON.stringify(preTree)
-    })
+    const updatedTree = deleteTarget(tree, position)
+    setTree(updatedTree)
     selectFolder('')
   }
-  const handleDropStart = (
-    e: React.DragEvent<HTMLElement>,
-    sourceFolder: FolderType,
-    sourcePosition: number[],
-  ) => {
+
+  // handle drag and drop
+  const handleDropStart = (e: React.DragEvent<HTMLElement>) => {
     const transferData = {
-      sourceFolder,
-      sourcePosition,
+      sourceFolder: folder,
+      sourcePosition: position,
     }
     e.dataTransfer.setData('text/json', JSON.stringify(transferData))
   }
-  const handleDrop = (e: React.DragEvent<HTMLElement>, targetPosition: number[]) => {
+  const handleDrop = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault()
     const dragDataStr = e.dataTransfer.getData('text/json')
     const dragData = JSON.parse(dragDataStr) as DragData
     const { sourceFolder, sourcePosition } = dragData
     // check to avoid move folder into itself or its children
-    if (JSON.stringify(targetPosition).startsWith(JSON.stringify(sourcePosition).slice(0, -1)))
+    if (JSON.stringify(position).startsWith(JSON.stringify(sourcePosition).slice(0, -1)))
       return alert('Cannot move folder into itself or its children!')
 
     setIsOpen(true)
-    setTree((preTreeStr: string) => {
-      // add source folder to target
-      const preTree = JSON.parse(preTreeStr)
-      const target = getTarget(preTree, [...targetPosition])
+    const target = getTarget(tree, position)
+    // add new after removing to avoid index change
+    if (target?.children) {
       // remove source folder
-      deleteTarget(preTree, [...sourcePosition])
-      // add new after removing to avoid index change
-      if (target?.children) {
-        target.children.push(sourceFolder)
-      }
-      return JSON.stringify(preTree)
-    })
+      const updatedTree = deleteTarget(tree, sourcePosition)
+      target.children.push(sourceFolder)
+      setTree(updatedTree)
+    }
   }
   return (
     <>
       <div
         style={{ cursor: 'pointer' }}
-        onDrop={e => handleDrop(e, position)}
+        onDrop={e => handleDrop(e)}
         onDragOver={e => e.preventDefault()}
         draggable
-        onDragStart={e => handleDropStart(e, folder, position)}>
+        onDragStart={e => handleDropStart(e)}>
         {hasChildren && (
           <span style={{ marginRight: '0.5rem' }} onClick={() => setIsOpen(!isOpen)}>
             {isOpen ? '▼' : '▶'}
@@ -150,7 +136,8 @@ const Folder = ({
           <>
             <input
               defaultValue={folderName}
-              onBlur={e => handleRename(e.target.value, position)}
+              onBlur={e => handleRename(e)}
+              ref={inputRef}
               required
             />
             <button onClick={handleAdd}>Add</button>
@@ -162,15 +149,7 @@ const Folder = ({
       </div>
       {children && children.length > 0 && (
         <div style={isOpen ? {} : { display: 'none' }}>
-          <Folders
-            folders={children}
-            selectFolder={selectFolder}
-            selected={selected}
-            setTree={setTree}
-            position={position}
-            setLatestId={setLatestId}
-            latestId={latestId}
-          />
+          <Folders folders={children} position={position} />
         </div>
       )}
     </>
