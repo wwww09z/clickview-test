@@ -57,6 +57,11 @@ const Folder = ({ folder, position }: { folder: FolderType; position: number[] }
   }, [selected])
 
   const handleRename = (e: React.FocusEvent<HTMLInputElement>) => {
+    const input = e.target
+    // trigger browser validation UI
+    const ok = input.reportValidity()
+    if (!ok) return
+
     const next = e.relatedTarget as HTMLElement | null
     const newName = e.target.value
     if (newName !== folderName) {
