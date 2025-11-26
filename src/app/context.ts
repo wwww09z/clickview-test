@@ -1,0 +1,20 @@
+import { createContext } from 'react'
+import { FolderType } from './components/Folder'
+
+interface TreeSettings {
+  selectFolder: Function
+  selected: string
+  tree: FolderType[]
+  setTree: Function
+  setLatestId: Function
+  latestId: number
+}
+
+export const TreeSettingsContext = createContext<TreeSettings>({
+  selectFolder: () => {},
+  selected: '',
+  tree: [],
+  setTree: () => {},
+  setLatestId: () => {},
+  latestId: 0,
+})
