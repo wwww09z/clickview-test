@@ -1,4 +1,4 @@
-import { createContext } from 'react'
+import { createContext, RefObject } from 'react'
 import { FolderType } from './components/Folder'
 
 interface TreeSettings {
@@ -8,6 +8,8 @@ interface TreeSettings {
   setTree: Function
   setLatestId: Function
   latestId: number
+  registerFolderRef: Function
+  folderRefs: RefObject<{ [id: string]: HTMLElement | null }>
 }
 
 export const TreeSettingsContext = createContext<TreeSettings>({
@@ -17,4 +19,6 @@ export const TreeSettingsContext = createContext<TreeSettings>({
   setTree: () => {},
   setLatestId: () => {},
   latestId: 0,
+  registerFolderRef: () => {},
+  folderRefs: { current: {} },
 })
