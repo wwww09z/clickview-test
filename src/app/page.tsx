@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Folders from './components/Folders'
 import { blankFolder, FolderType } from './components/Folder'
 import { TreeSettingsContext } from './context'
@@ -49,6 +49,11 @@ export default function Home() {
   const [selected, setSelected] = useState('')
   const [tree, setTree] = useState<FolderType[]>(initialTree)
   const [latestId, setLatestId] = useState(10)
+  const folderRefs = useRef<{ [id: string]: HTMLElement | null }>({})
+
+  const registerFolderRef = (id: string) => (el: HTMLElement | null) => {
+    folderRefs.current[id] = el
+  }
 
   const handleAdd = () => {
     const newLatestId = latestId + 1
@@ -70,6 +75,8 @@ export default function Home() {
         setTree,
         setLatestId,
         latestId,
+        registerFolderRef,
+        folderRefs,
       }}>
       <Folders folders={tree} position={[]} />
       <div>

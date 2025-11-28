@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { RefObject, useContext, useEffect, useRef, useState } from 'react'
 import Folders from './Folders'
 import { TreeSettingsContext } from '../context'
 
@@ -45,9 +45,54 @@ const deleteTarget = (tree: FolderType[], position: number[], depth = 0): Folder
   return [...newTree]
 }
 
+const moveFocus = (
+  position: number[],
+  moveChange: number,
+  tree: FolderType[],
+  folderRefs: RefObject<{ [id: string]: HTMLElement | null }>,
+  isOpen: boolean,
+) => {
+  const nextPosition = [...position]
+  const last = nextPosition.length - 1
+  const candidate = nextPosition[last] + moveChange
+
+  if (candidate < 0) {
+    // go to parent
+    nextPosition.pop()
+  } else if (isOpen && moveChange === 1) {
+    // go to first child
+    nextPosition.push(0)
+  } else {
+    nextPosition[last] = candidate
+    const maybe = getTarget(tree, nextPosition)
+    if (!maybe) {
+      // fallback to parent
+      while (nextPosition.length > 1) {
+        if (getTarget(tree, nextPosition)) break
+        nextPosition.pop()
+        nextPosition[nextPosition.length - 1] += 1
+      }
+    }
+  }
+
+  const target = getTarget(tree, nextPosition)
+  if (!target) return
+
+  folderRefs.current[target.id]?.focus()
+}
+
 const Folder = ({ folder, position }: { folder: FolderType; position: number[] }) => {
   const treeSettings = useContext(TreeSettingsContext)
-  const { selectFolder, selected, tree, setTree, setLatestId, latestId } = treeSettings
+  const {
+    selectFolder,
+    selected,
+    tree,
+    setTree,
+    setLatestId,
+    latestId,
+    registerFolderRef,
+    folderRefs,
+  } = treeSettings
   const { id, name: folderName, children } = folder
   const [isOpen, setIsOpen] = useState(false)
   const hasChildren = children && children.length > 0
@@ -119,6 +164,32 @@ const Folder = ({ folder, position }: { folder: FolderType; position: number[] }
       setTree(updatedTree)
     }
   }
+
+  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = e => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        moveFocus(position, 1, tree, folderRefs, isOpen)
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        moveFocus(position, -1, tree, folderRefs, isOpen)
+        break
+      case 'ArrowRight':
+        e.preventDefault()
+        setIsOpen(true)
+        break
+      case 'ArrowLeft':
+        e.preventDefault()
+        setIsOpen(false)
+        break
+      case 'Enter':
+        e.preventDefault()
+        // trigger same as click
+        selectFolder(id)
+        break
+    }
+  }
   return (
     <>
       <div
@@ -144,7 +215,14 @@ const Folder = ({ folder, position }: { folder: FolderType; position: number[] }
             <button onClick={handleRemove}>Remove</button>
           </>
         ) : (
-          <span onClick={() => selectFolder(id)}>{folderName}</span>
+          <span
+            id={id}
+            onClick={() => selectFolder(id)}
+            onKeyDown={handleKeyDown}
+            tabIndex={Number(id)}
+            ref={registerFolderRef(id)}>
+            {folderName}
+          </span>
         )}
       </div>
       {children && children.length > 0 && (
